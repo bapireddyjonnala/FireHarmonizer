@@ -1,0 +1,15 @@
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
