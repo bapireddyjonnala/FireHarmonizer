@@ -1,4 +1,6 @@
 import FireMap from "./components/fire-map/FireMap";
+import RegionSearch from "./components/RegionSearch";
+import type { RegionInfo } from "./data/regionsData";
 import HarmonizationLab from "./pages/HarmonizationLab/HarmonizationLab";
 import TimeMachine from "./pages/TimeMachine/TimeMachine";
 import AnomalyExplorer from "./pages/AnomalyExplorer/AnomalyExplorer";
@@ -17,7 +19,6 @@ import {
   Menu,
   Radio,
   Satellite,
-  Search,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -65,6 +66,15 @@ const navigation = [
 export default function App() {
   const [activePage, setActivePage] = useState("Overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<RegionInfo | null>(null);
+
+  const handleRegionSelect = (region: RegionInfo | null) => {
+    setSelectedRegion(region);
+    // Switch to Overview if user searches while in another tab so map is visible
+    if (region && activePage !== "Overview") {
+      setActivePage("Overview");
+    }
+  };
 
   // Close mobile drawer on Escape key and prevent background scroll
   useEffect(() => {
@@ -372,18 +382,17 @@ export default function App() {
               </h2>
 
               <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-                MODIS + VIIRS historical fire activity
+                {selectedRegion
+                  ? `Active Region: ${selectedRegion.name} (${selectedRegion.category})`
+                  : "MODIS + VIIRS historical fire activity"}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3">
-            <Search size={17} className="text-slate-500" />
-
-            <span className="text-sm text-slate-400">
-              Search region...
-            </span>
-          </div>
+          <RegionSearch
+            selectedRegion={selectedRegion}
+            onSelectRegion={handleRegionSelect}
+          />
         </header>
 
         {/* PAGE ROUTING */}
@@ -459,7 +468,10 @@ export default function App() {
                 </div>
 
                 <div className="mt-6 h-[420px] overflow-hidden rounded-xl border border-slate-800">
-                  <FireMap />
+                  <FireMap
+                    selectedRegion={selectedRegion}
+                    onClearRegion={() => setSelectedRegion(null)}
+                  />
                 </div>
               </div>
 

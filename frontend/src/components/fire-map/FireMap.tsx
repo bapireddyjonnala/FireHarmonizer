@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import IncidentImages from "./IncidentImages";
 
 import {
@@ -9,6 +9,7 @@ import {
   Popup,
   ZoomControl,
   Rectangle,
+  useMap,
   useMapEvents,
 } from "react-leaflet";
 
@@ -19,6 +20,7 @@ import {
   type FireDetection,
   type AOIBounds,
 } from "../../services/fireService";
+import type { RegionInfo } from "../../data/regionsData";
 
 import type { LatLng } from "leaflet";
 
@@ -216,7 +218,59 @@ function AOIMapClick({
   return null;
 }
 
-export default function FireMap() {
+function MapViewController({
+  region,
+  aoi,
+}: {
+  region?: RegionInfo | null;
+  aoi: AOIBounds | null;
+}) {
+  const map = useMap();
+  const prevTargetRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (region) {
+      const key = `region:${region.id}`;
+      if (prevTargetRef.current !== key) {
+        prevTargetRef.current = key;
+        map.flyToBounds(
+          [
+            [region.bounds.south, region.bounds.west],
+            [region.bounds.north, region.bounds.east],
+          ],
+          { padding: [35, 35], duration: 1.2 }
+        );
+      }
+    } else if (aoi) {
+      const key = `aoi:${aoi.west}:${aoi.south}:${aoi.east}:${aoi.north}`;
+      if (prevTargetRef.current !== key) {
+        prevTargetRef.current = key;
+        map.flyToBounds(
+          [
+            [aoi.south, aoi.west],
+            [aoi.north, aoi.east],
+          ],
+          { padding: [35, 35], duration: 1.2 }
+        );
+      }
+    } else if (prevTargetRef.current !== null) {
+      prevTargetRef.current = null;
+      map.flyTo([22.5, 82.0], 4, { duration: 1.0 });
+    }
+  }, [map, region, aoi]);
+
+  return null;
+}
+
+export interface FireMapProps {
+  selectedRegion?: RegionInfo | null;
+  onClearRegion?: () => void;
+}
+
+export default function FireMap({
+  selectedRegion,
+  onClearRegion,
+}: FireMapProps = {}) {
   const [fires, setFires] = useState<FireDetection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -226,9 +280,24 @@ export default function FireMap() {
 
   const [selectingAOI, setSelectingAOI] = useState(false);
   const [firstCorner, setFirstCorner] = useState<LatLng | null>(null);
-  const [aoi, setAoi] = useState<AOIBounds | null>(null);
+  const [aoi, setAoi] = useState<AOIBounds | null>(
+    selectedRegion ? selectedRegion.bounds : null
+  );
 
   const [selectionMessage, setSelectionMessage] = useState("");
+
+  // Sync AOI bounds whenever selectedRegion changes from parent search
+  useEffect(() => {
+    if (selectedRegion) {
+      setAoi(selectedRegion.bounds);
+      setFirstCorner(null);
+      setSelectingAOI(false);
+      setSelectionMessage(`Active Region: ${selectedRegion.name}`);
+    } else {
+      setAoi(null);
+      setSelectionMessage("");
+    }
+  }, [selectedRegion]);
 
   useEffect(() => {
     let active = true;
@@ -306,7 +375,8 @@ export default function FireMap() {
     setAoi(null);
     setFirstCorner(null);
     setSelectingAOI(false);
-    setSelectionMessage("Showing all India observations.");
+    setSelectionMessage("Showing all observations.");
+    onClearRegion?.();
   }
 
   function cancelAOISelection() {
@@ -366,23 +436,37 @@ export default function FireMap() {
             onClick={startAOISelection}
             className="rounded-lg bg-cyan-600 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-cyan-500"
           >
-            Select Region
+            Draw AOI
           </button>
         ) : (
           <button
             onClick={cancelAOISelection}
             className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-red-500"
           >
-            Cancel Selection
+            Cancel AOI
           </button>
         )}
 
-        {aoi && (
+        {selectedRegion && (
+          <div className="flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/90 px-2.5 py-1.5 text-xs font-semibold text-cyan-200 shadow-lg">
+            <span>📍 {selectedRegion.name}</span>
+            <button
+              type="button"
+              onClick={clearAOI}
+              className="ml-1 rounded p-0.5 text-cyan-400 hover:bg-cyan-900 hover:text-white"
+              title="Clear selected region"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {(aoi || selectedRegion) && (
           <button
             onClick={clearAOI}
             className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-slate-600"
           >
-            Clear Region
+            Reset Map
           </button>
         )}
       </div>
@@ -468,6 +552,11 @@ export default function FireMap() {
         className="h-full w-full"
       >
         <ZoomControl position="topright" />
+
+        <MapViewController
+          region={selectedRegion}
+          aoi={aoi}
+        />
 
         <AOIMapClick
           enabled={selectingAOI}

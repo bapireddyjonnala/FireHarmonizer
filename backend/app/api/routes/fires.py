@@ -66,9 +66,10 @@ def set_cached_data(key: str, data: list[dict[str, Any]]) -> None:
 def fetch_source_data(
     source: str,
     days: int,
+    area: str = INDIA_AREA,
 ) -> list[dict[str, Any]]:
 
-    cache_key = f"{source}:{days}"
+    cache_key = f"{source}:{days}:{area}"
     cached = get_cached_data(cache_key)
     if cached is not None:
         return cached
@@ -118,7 +119,7 @@ def fetch_source_data(
 
     url = (
         "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
-        f"{MAP_KEY}/{source}/{INDIA_AREA}/{days}"
+        f"{MAP_KEY}/{source}/{area}/{days}"
     )
 
     try:
@@ -397,15 +398,49 @@ def get_fire_detections(
     north: Optional[float] = Query(None),
 ):
 
-    detections = fetch_source_data(source, days)
+    bounds = [west, south, east, north]
 
-    filtered = filter_by_aoi(
-        detections,
-        west,
-        south,
-        east,
-        north,
-    )
+    if all(value is None for value in bounds):
+        detections = fetch_source_data(source, days, area=INDIA_AREA)
+        filtered = detections
+    elif any(value is None for value in bounds):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide all four AOI bounds: west, south, east, north",
+        )
+    else:
+        if west >= east or south >= north:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid AOI bounds",
+            )
+        if not (-180 <= west <= 180 and -180 <= east <= 180):
+            raise HTTPException(
+                status_code=400,
+                detail="Longitude must be between -180 and 180",
+            )
+        if not (-90 <= south <= 90 and -90 <= north <= 90):
+            raise HTTPException(
+                status_code=400,
+                detail="Latitude must be between -90 and 90",
+            )
+
+        # Check if requested bounding box is a sub-region within default India area (68, 6, 98, 36)
+        is_sub_india = (68.0 <= west and east <= 98.0 and 6.0 <= south and north <= 36.0)
+
+        if is_sub_india and (east - west < 15 and north - south < 15):
+            detections = fetch_source_data(source, days, area=INDIA_AREA)
+        else:
+            area_str = f"{round(west, 4)},{round(south, 4)},{round(east, 4)},{round(north, 4)}"
+            detections = fetch_source_data(source, days, area=area_str)
+
+        filtered = filter_by_aoi(
+            detections,
+            west,
+            south,
+            east,
+            north,
+        )
 
     return {
         "source": source,
