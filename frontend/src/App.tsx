@@ -14,10 +14,12 @@ import {
   Flame,
   Globe2,
   Layers3,
+  Menu,
   Radio,
   Satellite,
   Search,
   TrendingUp,
+  X,
 } from "lucide-react";
 
 interface Metrics {
@@ -55,13 +57,54 @@ const navigation = [
   { name: "Overview", icon: Layers3 },
   { name: "Fire Calendar", icon: CalendarDays },
   { name: "Harmonization Lab", icon: Activity },
-  { name: "Fire Time Machine", icon: Globe2 },
+  { name: "Time Machine", icon: Globe2 },
   { name: "Anomaly Explorer", icon: TrendingUp },
   { name: "Reports", icon: FileText },
 ];
 
 export default function App() {
   const [activePage, setActivePage] = useState("Overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile drawer on Escape key and prevent background scroll
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    if (mobileMenuOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
+
+  // Close mobile drawer if viewport is resized to desktop breakpoint (>= 1024px)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isItemActive = (itemName: string) => {
+    if (activePage === itemName) return true;
+    if (itemName === "Time Machine" && activePage === "Fire Time Machine") return true;
+    if (itemName === "Fire Time Machine" && activePage === "Time Machine") return true;
+    return false;
+  };
 
   const [metrics, setMetrics] = useState<Metrics>({
     active: 0,
@@ -174,14 +217,15 @@ export default function App() {
         <nav className="space-y-2">
           {navigation.map((item) => {
             const Icon = item.icon;
+            const active = isItemActive(item.name);
 
             return (
               <button
                 key={item.name}
                 onClick={() => setActivePage(item.name)}
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
-                  activePage === item.name
-                    ? "bg-orange-500/15 text-orange-400"
+                  active
+                    ? "bg-orange-500/15 font-medium text-orange-400"
                     : "text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
               >
@@ -208,26 +252,129 @@ export default function App() {
         </div>
       </aside>
 
+      {/* MOBILE BACKDROP */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/70 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setMobileMenuOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* MOBILE SLIDE-OUT DRAWER */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-slate-800 bg-[#0b1220] p-5 shadow-2xl transition-transform duration-300 ease-in-out lg:hidden ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        aria-label="Mobile navigation"
+      >
+        <div className="mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-orange-500/15 p-2.5">
+              <Flame className="text-orange-400" size={24} />
+            </div>
+
+            <div>
+              <h1 className="text-base font-bold text-white">
+                FireHarmonizer
+              </h1>
+
+              <p className="text-[10px] tracking-widest text-slate-500">
+                EARTH INTELLIGENCE
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            aria-label="Close mobile menu"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+          Workspace
+        </p>
+
+        <nav className="flex-1 space-y-2 overflow-y-auto">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const active = isItemActive(item.name);
+
+            return (
+              <button
+                key={item.name}
+                onClick={() => {
+                  setActivePage(item.name);
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition ${
+                  active
+                    ? "bg-orange-500/15 font-medium text-orange-400"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <Icon size={18} />
+                {item.name}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto pt-4">
+          <div className="rounded-xl border border-slate-800 bg-slate-900 p-4">
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <Satellite size={18} className="text-cyan-400" />
+              NASA FIRMS
+            </div>
+
+            <p className="mt-2 text-xs text-slate-500">
+              {metrics.loading
+                ? "Loading satellite data..."
+                : metrics.error
+                  ? "Data connection failed"
+                  : "Satellite data connected"}
+            </p>
+          </div>
+        </div>
+      </aside>
+
       {/* MAIN CONTENT */}
 
       <main className="lg:ml-64">
         {/* HEADER */}
 
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 px-6 py-5 lg:px-10">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-cyan-400">
-              Earth Observation Platform
-            </p>
+          <div className="flex items-center gap-4">
+            {/* MOBILE HAMBURGER BUTTON */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900 p-2.5 text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden"
+              aria-label="Open navigation menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <Menu size={22} />
+            </button>
 
-            <h2 className="mt-2 text-2xl font-bold text-white">
-              {activePage === "Overview"
-                ? "Fire Intelligence Dashboard"
-                : activePage}
-            </h2>
+            <div>
+              <p className="text-xs uppercase tracking-widest text-cyan-400">
+                Earth Observation Platform
+              </p>
 
-            <p className="mt-1 text-sm text-slate-500">
-              MODIS + VIIRS historical fire activity
-            </p>
+              <h2 className="mt-1 text-xl font-bold text-white sm:text-2xl">
+                {activePage === "Overview"
+                  ? "Fire Intelligence Dashboard"
+                  : activePage}
+              </h2>
+
+              <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+                MODIS + VIIRS historical fire activity
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3">
@@ -243,7 +390,7 @@ export default function App() {
 
         {activePage === "Harmonization Lab" ? (
           <HarmonizationLab />
-        ) : activePage === "Fire Time Machine" ? (
+        ) : activePage === "Time Machine" || activePage === "Fire Time Machine" ? (
           <TimeMachine />
         ) : activePage === "Fire Calendar" ? (
           <FireCalendar />
