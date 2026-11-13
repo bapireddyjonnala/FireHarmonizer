@@ -122,7 +122,7 @@ export default function RegionSearch({
             if (query.trim()) setIsOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search country, state, region..."
+          placeholder="Search city, state, country, or region..."
           className="w-full bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
           aria-label="Search region"
           autoComplete="off"
@@ -164,6 +164,10 @@ export default function RegionSearch({
                       <div className="flex items-center gap-2.5 overflow-hidden">
                         {item.category === "Country" ? (
                           <Globe size={15} className="shrink-0 text-cyan-400" />
+                        ) : item.category === "Region" ? (
+                          <Globe size={15} className="shrink-0 text-emerald-400" />
+                        ) : item.category === "City" || item.category === "District" ? (
+                          <MapPin size={15} className="shrink-0 text-sky-400" />
                         ) : (
                           <MapPin size={15} className="shrink-0 text-orange-400" />
                         )}
@@ -173,8 +177,10 @@ export default function RegionSearch({
                             {item.name}
                           </p>
                           {item.country && (
-                            <p className="text-[11px] text-slate-400">
-                              {item.country}
+                            <p className="text-[11px] text-slate-400 truncate">
+                              {item.adminRegion && item.adminRegion !== item.name
+                                ? `${item.adminRegion}, ${item.country}`
+                                : item.country}
                             </p>
                           )}
                         </div>
@@ -185,8 +191,10 @@ export default function RegionSearch({
                           className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                             item.category === "Country"
                               ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                              : item.category === "State"
+                              : item.category === "State" || item.category === "Province"
                               ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                              : item.category === "City" || item.category === "District"
+                              ? "bg-sky-500/10 text-sky-400 border border-sky-500/20"
                               : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                           }`}
                         >
@@ -205,17 +213,17 @@ export default function RegionSearch({
               })}
             </ul>
           ) : (
-            /* Helpful message when no matching region is found (Requirement 6) */
+            /* Helpful message when no matching location is found */
             <div className="p-4 text-center">
               <p className="text-xs font-semibold text-slate-300">
-                No matching region found for &ldquo;{query}&rdquo;
+                No matching location found for &ldquo;{query}&rdquo;
               </p>
               <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
-                Try searching for countries, states, or regions like{" "}
-                <span className="text-cyan-400">India</span>,{" "}
-                <span className="text-orange-400">Andhra Pradesh</span>,{" "}
-                <span className="text-cyan-400">Brazil</span>, or{" "}
-                <span className="text-cyan-400">Australia</span>.
+                Try searching for cities, states, countries, or regions like{" "}
+                <span className="text-cyan-400">Vijayawada</span>,{" "}
+                <span className="text-orange-400">California</span>,{" "}
+                <span className="text-sky-400">Tokyo</span>, or{" "}
+                <span className="text-emerald-400">Amazon Rainforest</span>.
               </p>
             </div>
           )}
